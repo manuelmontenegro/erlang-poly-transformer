@@ -8,7 +8,7 @@
 -module(list_utils).
 
 -export([unfoldr/2, unfoldl/2, integer_to_string/1, type_to_string/1,
-         spec_to_string/1, fold_type/4, post_compose_type/2]).
+         spec_to_string/1, fold_type/4, post_compose_type/2, nub/1, difference/2]).
 
 -type ast() :: term().
 
@@ -84,6 +84,8 @@ spec_to_string(Spec) -> lists:droplast(lists:flatten(erl_pp:form(Spec))).
             
 fold_type(FPre, FPost, St, {ann_type, _, [_,Type]} = T) ->
     FPost(T, fold_type(FPre, FPost, FPre(T, St), Type));
+fold_type(FPre, FPost, St, {paren_type, _, Types} = T) ->
+    FPost(T, fold_type_list(FPre, FPost, FPre(T, St), Types));
 fold_type(FPre, FPost, St, {type, _, record, [_]} = T) ->
     FPost(T, FPre(T, St));
 fold_type(FPre, FPost, St, {type, _, record, [_, Types]} = T) ->
@@ -131,6 +133,9 @@ fold_type_list(FPre, FPost, St, Types) ->
 
 post_compose_type({ann_type, L, [Name, _]}, [T|St]) ->
     {{ann_type, L, [Name, T]}, St};
+post_compose_type({paren_type, L, Ts}, St) ->
+    {St1, St2} = reverse_split(length(Ts), St),
+    {{paren_type, L, St1}, St2};
 post_compose_type({type, L, record, [N, Ts]}, St) ->
     {St1, St2} = reverse_split(length(Ts), St),
     {{type, L, record, [N, St1]}, St2};
@@ -169,3 +174,8 @@ reverse_split(N, Xs) -> reverse_split(N, [], Xs).
 reverse_split(0, Ac, Xs) -> {Ac, Xs};
 reverse_split(N, Ac, [X|Xs]) when N > 0 -> reverse_split(N-1, [X|Ac], Xs).
 
+
+nub([]) -> [];
+nub([X|Xs]) -> [X | nub([Z || Z <- Xs, Z =/= X])].
+
+difference(Xs, Ys) -> [ X || X <- Xs, not lists:member(X, Ys) ].

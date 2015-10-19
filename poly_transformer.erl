@@ -83,7 +83,7 @@ parse_transform(Forms, CompilerOptions) ->
                 [ {FA, normalize_overloaded_schema(Scs)} 
                             || {FA, Scs} <- Environment ],
             
-            
+            io:format("Normalized environment: ~p~n", [EnvironmentNorm]),
             % It generates a macro for each entry in the environment, 
             %
             % Each entry of the MacroEnv is of the form:
@@ -230,7 +230,7 @@ refresh_names_aux(Type, {FNGen, Mapping, Stack}) ->
 % For instance, given the schema (A,A) -> A, if the LHS is transformed
 % into (A_1,A_2), then the RHS is transformed in to A_1 | A_2.
 join_vars(Type, Mapping) ->
-    {_, [TRet1]} = 
+    {_, [TRet1]} =
         list_utils:fold_type(fun(_, M) -> M end,
                              fun join_names_aux/2,
                              {Mapping, []}, Type),
@@ -239,7 +239,7 @@ join_vars(Type, Mapping) ->
 join_names_aux({var, L, Var}, {Mapping, Stack}) ->
     FVS = [ {var, L, FV} || {FV,Var1} <- Mapping, Var1 == Var ],
     case FVS of
-        [] -> {Mapping, [{type, L, none, []} | Stack]};
+        [] -> {Mapping, [{var, L, Var} | Stack]};
         [FV] -> {Mapping, [FV | Stack]};
         [_|_] -> {Mapping, [{type, L, union, reverse(FVS)} | Stack]}
     end;
@@ -265,7 +265,12 @@ apply_mapping_to_constraint(M, {type, L, constraint, [F, Params]}) ->
     % Computing the inverse of the mapping M
     InvM = [ {Var, reverse([FV || {FV, Var1} <- M, Var1 == Var])} 
                                   || Var <- FVs ],
-    Perms = permutations(InvM),
+    % If a tuple {X, []} occurs in InvM, then X is a variable that only
+    % occurs in the constraints, but not in the LHS of the spec. We replace
+    % the binding {X, []} by {X, [X]}.
+    InvMSingleton = [ {Var, case Vs of [] -> [Var]; Xs -> Xs end} || {Var, Vs} <- InvM ],
+    Perms = permutations(InvMSingleton),
+%    Perms = permutations(InvM),
     [{type, L, constraint, [F, [apply_permutation(Par, Perm) || Par <- Params]]}
         || Perm <- Perms].
 
@@ -354,13 +359,21 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
     
     {TPars, TRes, Constraints} = decompose_scheme(Scheme),
     TParTypeVars = lists:append([free_variables(TPar) || TPar <- TPars]),
-    
-    As = [ freshname_generator:fresh_name(FGen, "A") || _ <- TParTypeVars ],
+    TConstrTypeVars = 
+        list_utils:difference(
+            list_utils:nub(
+                lists:append([ lists:append([free_variables(T) || T <- Ts])
+                               || {type, _, constraint, [_, Ts]} <- Constraints ])
+            ), TParTypeVars
+        ),
+        
+    TParConstrTypeVars = TParTypeVars ++ TConstrTypeVars,
+    As = [ freshname_generator:fresh_name(FGen, "A") || _ <- TParConstrTypeVars ],
     AVars = [ variable(A) || A <- As ],
-    APs = [ freshname_generator:fresh_name(FGen, "AP")  || _ <- TParTypeVars ],
+    APs = [ freshname_generator:fresh_name(FGen, "AP")  || _ <- TParConstrTypeVars ],
     
-    Eta = maps:from_list(lists:zip(TParTypeVars, [variable(A) || A <- As])),
-    Theta = maps:from_list(lists:zip(TParTypeVars, 
+    Eta = maps:from_list(lists:zip(TParConstrTypeVars, [variable(A) || A <- As])),
+    Theta = maps:from_list(lists:zip(TParConstrTypeVars, 
                            [variable(AP) || AP <- APs])),
 
     ExpPars =
@@ -375,7 +388,7 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
                  
     CsBindings = [tr_constraint(C, MGen, FGen, Eta, Theta) || C <- Constraints],
 
-    EtaP = maps:from_list(lists:zip(TParTypeVars, 
+    EtaP = maps:from_list(lists:zip(TParConstrTypeVars, 
             [application(variable(AP), []) || AP <- APs])),
 
     ExpRes = tr_par(TRes, MGen, FGen, EtaP, Theta, []),
@@ -427,6 +440,9 @@ tr_par({type, _, union, Alts}, MGen, FGen, Eta, Theta, VarsToSet) ->
     AltExprs = [ tr_par(Alt, MGen, FGen, Eta, Theta, VarsToSet)
                     || Alt <- Alts ],
     macrocall_generator:gen_code(MGen, alt, AltExprs);
+
+tr_par({type, _, tuple, any}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, tuple_any);
 
 tr_par({type, _, tuple, Comps}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par_comps(Comps, MGen, FGen, Eta, Theta, VarsToSet, tuple);
@@ -481,7 +497,7 @@ tr_par(Type, MGen, _, _, _, _) ->
 tr_par_comps(Comps, MGen, FGen, Eta, Theta, VarsToSet, GenCallName) ->
 
     FreeVarsComps = [
-        [ maps:get(V, Theta) ||  V <- free_variables(Comp) ]
+        [ maps:get(V, Theta, variable(V)) ||  V <- free_variables(Comp) ]
             || Comp <- Comps],
     VarsToSetComp = 
         [ [ V || V <- VarsToSet, member(V, FVComp)]
