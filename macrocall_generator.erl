@@ -41,7 +41,8 @@
 
 -type gen_specifier() :: 
     none_closure | integer | float | number | {integer, integer()} |
-    {atom, atom()} | any | alt | nil | nonempty_list | {'fun', integer()}.
+    {atom, atom()} | any | alt | nil | nonempty_list | {'fun', integer()} |
+    pos_integer | tuple_any | non_neg_integer | atom | string.
     
     
 -type ast_expr() :: term().
@@ -83,6 +84,31 @@ handle_call({gen_call, float, []}, _, St) ->
 handle_call({gen_call, number, []}, _, St) -> 
     {reply, application(abstract('NUMBER'), []),
          add_to_generated(number, St)};
+         
+% Returns: 'TUPLE'()         
+handle_call({gen_call, tuple_any, []}, _, St) -> 
+    {reply, application(abstract('TUPLE'), []),
+         add_to_generated(tuple_any, St)};
+
+% Returns: 'POS_INTEGER'()         
+handle_call({gen_call, pos_integer, []}, _, St) -> 
+    {reply, application(abstract('POS_INTEGER'), []),
+         add_to_generated(pos_integer, St)};
+         
+% Returns: 'NON_NEG_INTEGER'()         
+handle_call({gen_call, non_neg_integer, []}, _, St) -> 
+    {reply, application(abstract('NON_NEG_INTEGER'), []),
+         add_to_generated(non_neg_integer, St)};
+         
+% Returns: 'ATOM'()         
+handle_call({gen_call, atom, []}, _, St) -> 
+    {reply, application(abstract('ATOM'), []),
+         add_to_generated(atom, St)};
+
+% Returns: 'STRING'()         
+handle_call({gen_call, string, []}, _, St) -> 
+    {reply, application(abstract('STRING'), []),
+         add_to_generated(string, St)};
 
 % Returns the given integer as an AST
 handle_call({gen_call, {integer, N}, []}, _, St) ->
@@ -162,7 +188,7 @@ generate_code_for(none) ->
 
 % Code generated:
 %
-% -spec 'INTEGER'() -> none().
+% -spec 'INTEGER'() -> integer().
 % 'INTEGER'() -> receive X when is_integer(X) -> X end.
 generate_code_for(integer) ->
     [
@@ -182,7 +208,7 @@ generate_code_for(integer) ->
 
 % Code generated:
 %
-% -spec 'FLOAT'() -> none().
+% -spec 'FLOAT'() -> float().
 % 'FLOAT'() -> receive X when is_float(X) -> X end.
 generate_code_for(float) ->
     [
@@ -203,7 +229,7 @@ generate_code_for(float) ->
 
 % Code generated:
 %
-% -spec 'NUMBER'() -> none().
+% -spec 'NUMBER'() -> number().
 % 'NUMBER'() -> receive X when is_number(X) -> X end.
 generate_code_for(number) ->
     [
@@ -223,7 +249,109 @@ generate_code_for(number) ->
 
 % Code generated:
 %
-% -spec 'ANY'() -> none().
+% -spec 'POS_INTEGER'() -> pos_integer().
+% 'POS_INTEGER'() -> receive X when is_integer(X), X >= 1 -> X end.
+generate_code_for(pos_integer) ->
+    [
+ add_ann(typespec,
+    attribute(spec, [
+     abstract({{'POS_INTEGER',0},
+      [{type,12,'fun',[{type,12,product,[]},{type,12,pos_integer,[]}]}]})
+    ])),
+    function(abstract('POS_INTEGER'), [
+        clause([], none, [
+            receive_expr([clause([variable("X")], 
+                            [application(abstract(is_number), [variable("X")]),
+                             infix_expr(variable("X"), operator(">="), abstract(1))],
+                            [variable("X")])])
+        ])
+    ])
+    ];
+
+
+% Code generated:
+%
+% -spec 'NON_NEG_INTEGER'() -> non_neg_integer().
+% 'POS_INTEGER'() -> receive X when is_integer(X), X >= 0 -> X end.
+generate_code_for(non_neg_integer) ->
+    [
+ add_ann(typespec,
+    attribute(spec, [
+     abstract({{'NON_NEG_INTEGER',0},
+      [{type,12,'fun',[{type,12,product,[]},{type,12,non_neg_integer,[]}]}]})
+    ])),
+    function(abstract('NON_NEG_INTEGER'), [
+        clause([], none, [
+            receive_expr([clause([variable("X")], 
+                            [application(abstract(is_number), [variable("X")]),
+                             infix_expr(variable("X"), operator(">="), abstract(0))],
+                            [variable("X")])])
+        ])
+    ])
+    ];
+
+
+% Code generated:
+%
+% -spec 'TUPLE'() -> tuple().
+% 'TUPLE'() -> receive X when is_tuple(X) -> X end.
+generate_code_for(tuple_any) ->
+    [
+ add_ann(typespec,
+    attribute(spec, [
+     abstract({{'TUPLE',0},
+      [{type,12,'fun',[{type,12,product,[]},{type,12,tuple,any}]}]})
+    ])),
+    function(abstract('TUPLE'), [
+        clause([], none, [
+            receive_expr([clause([variable("X")], 
+                            [application(abstract(is_tuple), [variable("X")])],
+                            [variable("X")])])
+        ])
+    ])
+    ];
+    
+    
+% Code generated:
+%
+% -spec 'ATOM'() -> atom().
+% 'ATOM'() -> receive X when is_atom(X) -> X end.
+generate_code_for(atom) ->
+    [
+ add_ann(typespec,
+    attribute(spec, [
+     abstract({{'ATOM',0},
+      [{type,12,'fun',[{type,12,product,[]},{type,12,atom,[]}]}]})
+    ])),
+    function(abstract('ATOM'), [
+        clause([], none, [
+            receive_expr([clause([variable("X")], 
+                            [application(abstract(is_atom), [variable("X")])],
+                            [variable("X")])])
+        ])
+    ])
+    ];    
+
+% Code generated:
+%
+% -spec 'STRING'() -> string().
+% 'STRING'() -> atom_to_list(X).
+generate_code_for(string) ->
+    [
+ add_ann(typespec,
+    attribute(spec, [
+     abstract({{'STRING',0},
+      [{type,12,'fun',[{type,12,product,[]},{type,12,string,[]}]}]})
+    ])),
+    function(abstract('STRING'), [
+        clause([], none, [application(abstract(atom_to_list), [abstract(a)])])
+        ])
+    ];
+
+
+% Code generated:
+%
+% -spec 'ANY'() -> any().
 % 'ANY'() -> receive X -> X end.
  
 generate_code_for(any) ->

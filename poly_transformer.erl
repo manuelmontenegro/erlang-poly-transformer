@@ -478,13 +478,27 @@ tr_par({type, _, any, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
 tr_par({type, _, number, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, number);
 
+tr_par({type, _, atom, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, atom);
+
+tr_par({type, _, string, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, string);
+
+tr_par({type, _, pos_integer, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, pos_integer);
+    
+tr_par({type, _, non_neg_integer, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, non_neg_integer);    
+
 tr_par({type, _, boolean, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par({type, 0, union, [{atom, 0, true}, {atom, 0, false}]}, 
                 MGen, FGen, Eta, Theta, VarsToSet);
 
+tr_par({type, L, term, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par({type, L, any, []}, MGen, FGen, Eta, Theta, VarsToSet);
+
 tr_par({paren_type, _, [T]}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par(T, MGen, FGen, Eta, Theta, VarsToSet);
-
 
 tr_par(Type, MGen, _, _, _, _) -> 
     io:format("Unknown type: ~p. Using any()~n", [Type]),
