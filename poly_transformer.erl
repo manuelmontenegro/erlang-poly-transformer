@@ -83,7 +83,6 @@ parse_transform(Forms, CompilerOptions) ->
                 [ {FA, normalize_overloaded_schema(Scs)} 
                             || {FA, Scs} <- Environment ],
             
-            io:format("Normalized environment: ~p~n", [EnvironmentNorm]),
             % It generates a macro for each entry in the environment, 
             %
             % Each entry of the MacroEnv is of the form:
