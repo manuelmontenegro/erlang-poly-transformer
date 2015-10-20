@@ -1,6 +1,6 @@
 # Erlang Polymorphic Specs
 
-This tool is meant to improve the precision of Dialyzer when dealing with polymorphic specs. It transforms an Erlang source code program in order to substitute macro calls for polymorphic function calls. The macro call forces Dialyzer to use the concrete monomorphic instance of the spec corresponding to the types of the arguments.
+This tool is meant to improve the precision of [Dialyzer](http://www.erlang.org/doc/man/dialyzer.html) when dealing with polymorphic specs. It transforms an Erlang source code program in order to substitute macro calls for polymorphic function calls. The macro call forces Dialyzer to use the concrete monomorphic instance of the spec corresponding to the types of the arguments.
 
 ## Example
 
