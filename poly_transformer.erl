@@ -497,6 +497,9 @@ tr_par({type, _, boolean, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
 tr_par({type, L, term, []}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par({type, L, any, []}, MGen, FGen, Eta, Theta, VarsToSet);
 
+tr_par({ann_type, _, [_, T]}, MGen, FGen, Eta, Theta, VarsToSet) ->
+    tr_par(T, MGen, FGen, Eta, Theta, VarsToSet);
+
 tr_par({paren_type, _, [T]}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par(T, MGen, FGen, Eta, Theta, VarsToSet);
 
