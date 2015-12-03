@@ -52,7 +52,8 @@
 -import(lists, [mapfoldl/3, reverse/1, member/2]).                    
 
 
--record(options, {output = none, no_schemes = [], no_calls = []}).
+-record(options, {output = none, no_schemes = [], no_calls = [], 
+                  transform_recursive_calls = true}).
 
 parse_transform(Forms, CompilerOptions) ->
     % If we are not running neither dialyzer nor typer, we do not transform
@@ -110,7 +111,8 @@ parse_transform(Forms, CompilerOptions) ->
 
             % It replaces the calls of functions by calls to macros.
             TransformedFuncDefs = 
-                [ replace_calls(MacroEnv, Form, Options#options.no_calls)
+                [ replace_calls(MacroEnv, Form, Options#options.no_calls,
+                                 Options#options.transform_recursive_calls)
                      || Form <- NormFuncDefs ],
                 
             % Now we obtain the definitions of the auxiliary macros and functions
@@ -158,6 +160,8 @@ get_options(Header) ->
                                 no_polymorphic_schemes ->
                                     [Arg] = attribute_arguments(Form),
                                     Options#options{no_schemes = concrete(Arg)};
+                                no_transform_recursive_calls ->
+                                    Options#options{transform_recursive_calls = false};
                                 _ -> Options
                             end;
                         _ -> Options
@@ -564,7 +568,7 @@ normalize_form(NormEnv, Form) ->
 
 % It replaces the function calls in the environment with the corresponding
 % macro calls.    
-replace_calls(MacroEnv, Form, NoPolyCalls) ->
+replace_calls(MacroEnv, Form, NoPolyCalls, TransformRecCalls) ->
     case type(Form) of
         function -> 
             Name = concrete(function_name(Form)),
@@ -572,8 +576,13 @@ replace_calls(MacroEnv, Form, NoPolyCalls) ->
             case member({Name, Arity}, NoPolyCalls) of
                 false ->
                     FGen = freshname_generator:new(),
+                    MacroEnv2 = 
+                        case TransformRecCalls of
+                            true -> MacroEnv;
+                            false -> lists:keydelete({Name,Arity},1,MacroEnv)
+                        end,
                     erl_syntax_lib:map(
-                        fun(Exp) -> replace_call(FGen, MacroEnv, Exp) end,
+                        fun(Exp) -> replace_call(FGen, MacroEnv2, Exp) end,
                     Form);
                 true -> Form
             end;
