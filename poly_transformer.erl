@@ -629,22 +629,25 @@ write_transformed(none, Forms, FileName) ->
     end,
     write_transformed(NewName, Forms, FileName);
 write_transformed(FileName, Forms, _) -> 
-    case file:open(FileName, [write]) of
-        {ok, File} ->  
-            [
-                io:fwrite(File, "~s~n~n", 
-                    [erl_prettypr:format(Form, [{hook, fun print_spec/3}])])
-                || Form <- Forms
-            ],
+    case file:open(FileName, [write, {encoding, utf8}]) of
+        {ok, File} ->
+            [io:fwrite(File, "~s~n~n", [erl_prettypr_format(Form)]) || Form <- Forms],
             io:format("Transformed program written into ~s~n", [FileName]);
         {error, Reason} -> 
             io:format("Cannot write output ~s: ~p~n", [FileName, Reason])
     end,
     FileName.
 
+erl_prettypr_format(Form = {attribute,_,_,_}) ->
+    erl_prettypr_format(Form, [{paper, 800}, {ribbon, 800}]);
+erl_prettypr_format(Form) ->
+    erl_prettypr_format(Form, [{paper, 100}, {ribbon, 100}]).
 
-    
-    
+erl_prettypr_format(Form, Extras) ->
+    erl_prettypr:format(Form, [{hook, fun print_spec/3},
+        {encoding, utf8} | Extras]).
+
+
 print_spec(Form, Ctx, Cont) -> 
     Anns = get_ann(Form),
     case member(typespec, Anns) of
@@ -656,9 +659,3 @@ print_spec(Form, Ctx, Cont) ->
             ));
         false -> Cont(Form, Ctx)
     end.
-    
-    
-
-
-    
-
