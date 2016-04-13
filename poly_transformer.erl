@@ -48,9 +48,6 @@
                     application_operator/1, application_arguments/1,
                     function_name/1, function_arity/1, variable_name/1,
                     revert_forms/1, function_clauses/1, function/2]).
-                    
--import(lists, [mapfoldl/3, reverse/1, member/2]).                    
-
 
 -record(options, {output = none, no_schemes = [], no_calls = [], 
                   transform_recursive_calls = true}).
@@ -77,7 +74,7 @@ parse_transform(Forms, CompilerOptions) ->
             % {{FunName, Arity}, [Scheme_1, ..., Scheme_n]}
             Environment = [ {{F,A},Sch} 
                             || {{F,A}, Sch} <- build_environment(Forms),
-                               not member({F,A}, Options#options.no_schemes) ],
+                               not lists:member({F,A}, Options#options.no_schemes) ],
             
             % We transform the environment by normalizing the type schemes
             EnvironmentNorm = 
@@ -244,7 +241,7 @@ join_names_aux({var, L, Var}, {Mapping, Stack}) ->
     case FVS of
         [] -> {Mapping, [{var, L, Var} | Stack]};
         [FV] -> {Mapping, [FV | Stack]};
-        [_|_] -> {Mapping, [{type, L, union, reverse(FVS)} | Stack]}
+        [_|_] -> {Mapping, [{type, L, union, lists:reverse(FVS)} | Stack]}
     end;
     
 join_names_aux(Type, {Mapping, Stack}) ->
@@ -266,7 +263,7 @@ join_names_aux(Type, {Mapping, Stack}) ->
 apply_mapping_to_constraint(M, {type, L, constraint, [F, Params]}) ->
     FVs = lists:append([free_variables(Par) || Par <- Params]),
     % Computing the inverse of the mapping M
-    InvM = [ {Var, reverse([FV || {FV, Var1} <- M, Var1 == Var])} 
+    InvM = [ {Var, lists:reverse([FV || {FV, Var1} <- M, Var1 == Var])}
                                   || Var <- FVs ],
     % If a tuple {X, []} occurs in InvM, then X is a variable that only
     % occurs in the constraints, but not in the LHS of the spec. We replace
@@ -277,7 +274,7 @@ apply_mapping_to_constraint(M, {type, L, constraint, [F, Params]}) ->
     [{type, L, constraint, [F, [apply_permutation(Par, Perm) || Par <- Params]]}
         || Perm <- Perms].
 
-free_variables(Type) -> reverse(list_utils:fold_type(fun(_, St) -> St end, 
+free_variables(Type) -> lists:reverse(list_utils:fold_type(fun(_, St) -> St end,
                                 fun free_variables_aux/2, [], Type)).
                                 
 free_variables_aux({var, _, Var}, FVs) -> [Var | FVs];
@@ -520,10 +517,10 @@ tr_par_comps(Comps, MGen, FGen, Eta, Theta, VarsToSet, GenCallName) ->
         [ maps:get(V, Theta, variable(V)) ||  V <- free_variables(Comp) ]
             || Comp <- Comps],
     VarsToSetComp = 
-        [ [ V || V <- VarsToSet, member(V, FVComp)]
+        [ [ V || V <- VarsToSet, lists:member(V, FVComp)]
             || FVComp <- FreeVarsComps ],
     MentionedVars = lists:append(VarsToSetComp),
-    NotMentionedVars = [ V || V <- VarsToSet, not member(V, MentionedVars) ],
+    NotMentionedVars = [ V || V <- VarsToSet, not lists:member(V, MentionedVars) ],
 
     CompsExprs = [
        tr_par(Comp, MGen, FGen, Eta, Theta, VarToSetComp)
@@ -573,7 +570,7 @@ replace_calls(MacroEnv, Form, NoPolyCalls, TransformRecCalls) ->
         function -> 
             Name = concrete(function_name(Form)),
             Arity = function_arity(Form),
-            case member({Name, Arity}, NoPolyCalls) of
+            case lists:member({Name, Arity}, NoPolyCalls) of
                 false ->
                     FGen = freshname_generator:new(),
                     MacroEnv2 = 
@@ -650,7 +647,7 @@ erl_prettypr_format(Form, Extras) ->
 
 print_spec(Form, Ctx, Cont) -> 
     Anns = get_ann(Form),
-    case member(typespec, Anns) of
+    case lists:member(typespec, Anns) of
         true -> 
             [{NameArity, Schemes}] = 
                 [concrete(Arg) || Arg <- attribute_arguments(Form)],

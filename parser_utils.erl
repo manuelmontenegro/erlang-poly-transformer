@@ -1,27 +1,46 @@
-
-
-%% @doc Tools for traversing Erlang terms represented by their Abstract form.
+%%===========================================================================================
+%% @doc
+%% Tools for traversing Erlang terms represented by their Abstract form.
+%% @end
 %%
-%% @reference <a href="http://www.erlang.org/doc/apps/erts/absform.html"> Definition of erlang abstract format</a>
+%% @reference <a href="http://www.erlang.org/doc/apps/erts/absform.html">Definition of
+%%            erlang abstract format</a>
 %% @author Manuel Montenegro <montenegro@fdi.ucm.es>
-
-
+%%===========================================================================================
 -module(parser_utils).
+-author("Manuel Montenegro").
+-export([
+    replace_with_subexpressions/2, fold_expression/4
+]).
+-export_type([
+    expression/0
+]).
 
--export([replace_with_subexpressions/2, fold_expression/4]).
--export_type([expression/0]).
+%%===========================================================================================
+%% Types
+%%===========================================================================================
 
-%% @type expression().  
-%%
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% @type expression().
 %% Abstract form of an Erlang expression.
-
+%% @end
+%%-------------------------------------------------------------------------------------------
 -type expression() :: tuple().
 
+%%===========================================================================================
+%% Functions
+%%===========================================================================================
 
-
-% Given an expression in the form of a tuple, it returns the
-% positions of the tuple which contain the child subexpressions.
-
+%%-------------------------------------------------------------------------------------------
+%% @private
+%% @doc
+%% Given an expression in the form of a tuple, it returns the positions of the tuple
+%% which contain the child subexpressions.
+%% @spec
+%% subexpressions(expression()) -> list(integer())
+%% @end
+%%-------------------------------------------------------------------------------------------
 -spec subexpressions(expression()) -> list(integer()).
 subexpressions({match, _, _, _}) -> [3, 4];
 subexpressions({tuple, _, _}) -> [3];
@@ -56,21 +75,25 @@ subexpressions({'fun', _, {clauses, _}}) -> [3];
 subexpressions({clauses, _}) -> [2];
 subexpressions({'query', _, _}) -> [3];
 subexpressions({clause, _, _, _, _}) -> [3, 4, 5];
-
 subexpressions(_) -> [].
 
-
-
-%% @doc It replaces the subexpressions of a given expression (or list) by the expressions given as second parameter.
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% It replaces the subexpressions of a given expression (or list) by the expressions
+%% given as second parameter.
 %% 
-%% This is an utility function to be used between the transformer functions of fold_expression/4.
+%% This is an utility function to be used between the transformer functions of
+%% fold_expression/4.
 %%
-%% Note: This function has an overloaded spec. If you give an expression (resp. list of expressions), you will be returned an expression (resp. list of expressions).
+%% Note: This function has an overloaded spec. If you give an expression (resp. list
+%% of expressions), you will be returned an expression (resp. list of expressions).
 %%
 %% @see fold_expression/4
-%% @spec replace_with_subexpressions(Exp, NewExps) -> expression() | [expression()]
-%%                    Exp = expression() | [expression()]
-%%                    NewExps = [expression()]
+%% @spec
+%% replace_with_subexpressions(expression(), [expression()]) -> expression();
+%%                            ([expression()], [expression()]) -> [expression()]
+%% @end
+%%-------------------------------------------------------------------------------------------
 -spec replace_with_subexpressions(expression(), [expression()]) -> expression();
                                  ([expression()], [expression()]) -> [expression()].
 replace_with_subexpressions([], []) -> [];
@@ -79,38 +102,40 @@ replace_with_subexpressions(Exp, NewExps) when is_tuple(Exp) ->
        Indices = subexpressions(Exp),
        IndExps = lists:zip(Indices, NewExps),
        lists:foldl(fun({Idx, NewExp}, T) -> setelement(Idx, T, NewExp) end, Exp, IndExps).
-    
-    
 
-
-
-%% @doc Traverses an Erlang expression (or a list of expressions) given by its abstract form.
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% Traverses an Erlang expression (or a list of expressions) given by its abstract form.
 %%
 %% An accumulator is propagated and modified through the traversal.
 %%
-%% The first parameter is a combinator function. It combines the results of the subexpressions and
-%% returns the value corresponding to the parent expression with the next state of the accumulator.
+%% The first parameter is a combinator function. It combines the results of the subexpressions
+%% and returns the value corresponding to the parent expression with the next state of the
+%% accumulator.
 %%
-%% The second parameter is the accumulator transformer. It is called before traversing the
-%% first child, and between the traversal of subsequent childs. It receives the parent expression,
-%% the position of the last child visited, the last child visited itself, the current state of the accumulator,
-%% and the partial results obtained for each child visited so far. It must return the next state of the accumulator.
+%% The second parameter is the accumulator transformer. It is called before traversing the first
+%% child, and between the traversal of subsequent childs. It receives the parent expression, the
+%% position of the last child visited, the last child visited itself, the current state of the
+%% accumulator, and the partial results obtained for each child visited so far. It must return
+%% the next state of the accumulator.
 %%
-%% Note: This function has an overloaded spec. If you give an expression (resp. list of expressions), you will be returned an expression (resp. list of expressions).
-%% 
-%% @spec fold_expression(F :: Combinator, AccTransformer :: Transformer, InitAcc :: A, Expr :: expression() | [expression()]) -> {B, A}
-%%           Combinator = fun((expression(), A, [B]) -> {B, A})
-%%           AccTransformer = fun((expression(), integer(), expression(), A, [B]) -> A)
-    
-
--spec fold_expression(F :: fun((expression(), A, [B]) -> {B, A}) , 
-                      AccTransformer :: fun((expression(), integer(), expression(), A, [B]) -> A),
-                      InitAcc :: A, Expr :: expression()) -> {B, A};
-                      
-                     (F :: fun(([expression()], A, [B]) -> {B, A}),
-                      AccTransformer :: fun(([expression()], integer(), expression(), A, [B]) -> A),
-                      InitAcc :: A, Expr :: [expression()]) -> A.
-                      
+%% Note: This function has an overloaded spec. If you give an expression (resp. list of
+%%       expressions), you will be returned an expression (resp. list of expressions).
+%% @spec
+%% fold_expression(F::fun((expression(), A, [B]) -> {B, A}),
+%%                 AccTransformer::fun((expression(), integer(), expression(), A, [B]) -> A),
+%%                 InitAcc::A, Expr::expression()) -> {B, A};
+%%                (F::fun(([expression()], A, [B]) -> {B, A}),
+%%                 AccTransformer::fun(([expression()], integer(), expression(), A, [B]) -> A),
+%%                 InitAcc::A, Expr::[expression()]) -> A.
+%% @end
+%%-------------------------------------------------------------------------------------------
+-spec fold_expression(F::fun((expression(), A, [B]) -> {B, A}),
+                      AccTransformer::fun((expression(), integer(), expression(), A, [B]) -> A),
+                      InitAcc::A, Expr::expression()) -> {B, A};
+                     (F::fun(([expression()], A, [B]) -> {B, A}),
+                      AccTransformer::fun(([expression()], integer(), expression(), A, [B]) -> A),
+                      InitAcc::A, Expr::[expression()]) -> A.
 fold_expression(F, AccTransformer, InitAcc, Exprs) when is_list(Exprs) ->
     StartAcc = AccTransformer(Exprs, 0, none, InitAcc, []),
     {_, ResultsRev, LastAcc} = 
@@ -121,7 +146,6 @@ fold_expression(F, AccTransformer, InitAcc, Exprs) when is_list(Exprs) ->
                         {ChildNo + 1, NextList, NextAcc}
                     end, {1, [], StartAcc},  Exprs),
     F(Exprs, LastAcc, lists:reverse(ResultsRev));
-    
 fold_expression(F, AccTransformer, InitAcc, ParentExpr) when is_tuple(ParentExpr) -> 
     Indices = subexpressions(ParentExpr),
     SubExprs = lists:map(fun(Index) -> element(Index, ParentExpr) end, Indices),
@@ -134,7 +158,3 @@ fold_expression(F, AccTransformer, InitAcc, ParentExpr) when is_tuple(ParentExpr
                         {ChildNo + 1, NextList, NextAcc}
                     end, {1, [], StartAcc},  SubExprs),
     F(ParentExpr, LastAcc, lists:reverse(ResultsRev)).
-    
-    
-    
-
