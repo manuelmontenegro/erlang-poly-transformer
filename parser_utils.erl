@@ -49,7 +49,7 @@ subexpressions({bin,_, _}) -> [3];
 subexpressions({bin_element, _, _, _, _}) -> [3];
 subexpressions({op, _, _, _, _}) -> [4, 5];
 subexpressions({op, _, _, _}) -> [4];
-subexpressions({record, _, _, _}) -> [4];    
+subexpressions({record, _, _, _}) -> [4];
 subexpressions({record, _, _, _, _}) -> [3, 5];
 subexpressions({record_index, _, _, _}) -> [4];
 subexpressions({record_field, _, _, _}) -> [3, 4];
@@ -81,7 +81,7 @@ subexpressions(_) -> [].
 %% @doc
 %% It replaces the subexpressions of a given expression (or list) by the expressions
 %% given as second parameter.
-%% 
+%%
 %% This is an utility function to be used between the transformer functions of
 %% fold_expression/4.
 %%
@@ -138,7 +138,7 @@ replace_with_subexpressions(Exp, NewExps) when is_tuple(Exp) ->
                       InitAcc::A, Expr::[expression()]) -> A.
 fold_expression(F, AccTransformer, InitAcc, Exprs) when is_list(Exprs) ->
     StartAcc = AccTransformer(Exprs, 0, none, InitAcc, []),
-    {_, ResultsRev, LastAcc} = 
+    {_, ResultsRev, LastAcc} =
         lists:foldl(fun(Expr, {ChildNo, ResList, CurAcc}) ->
                         {Res, IntermediateAcc} = fold_expression(F, AccTransformer, CurAcc, Expr),
                         NextList = [Res | ResList],
@@ -146,11 +146,11 @@ fold_expression(F, AccTransformer, InitAcc, Exprs) when is_list(Exprs) ->
                         {ChildNo + 1, NextList, NextAcc}
                     end, {1, [], StartAcc},  Exprs),
     F(Exprs, LastAcc, lists:reverse(ResultsRev));
-fold_expression(F, AccTransformer, InitAcc, ParentExpr) when is_tuple(ParentExpr) -> 
+fold_expression(F, AccTransformer, InitAcc, ParentExpr) when is_tuple(ParentExpr) ->
     Indices = subexpressions(ParentExpr),
     SubExprs = lists:map(fun(Index) -> element(Index, ParentExpr) end, Indices),
     StartAcc = AccTransformer(ParentExpr, 0, none, InitAcc, []),
-    {_, ResultsRev, LastAcc} = 
+    {_, ResultsRev, LastAcc} =
         lists:foldl(fun(Expr, {ChildNo, ResList, CurAcc}) ->
                         {Res, IntermediateAcc} = fold_expression(F, AccTransformer, CurAcc, Expr),
                         NextList = [Res | ResList],

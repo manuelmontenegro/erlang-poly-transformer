@@ -9,8 +9,8 @@
 %% Each fresh name is preceded by a prefix. The generator will append the
 %% string `_N' to this prefix, where `N' is an unique number. This number
 %% cannot be repeated for a given prefix, but it may occur twice when applied
-%% to different prefixes. For instance, when using the prefix `F', the 
-%% successive calls to {@link fresh_name} will result in the names `F_1', 
+%% to different prefixes. For instance, when using the prefix `F', the
+%% successive calls to {@link fresh_name} will result in the names `F_1',
 %% `F_2', `F_3', etc.
 %% @end
 %%
@@ -111,11 +111,11 @@ init(_) -> {ok, {maps:new(), []}}.
 %% Handles the call messages.
 %% @end
 %%-------------------------------------------------------------------------------------------
-handle_call({fresh_name, Prefix}, _, {Map, GenNames}) -> 
+handle_call({fresh_name, Prefix}, _, {Map, GenNames}) ->
     Counter = maps:get(Prefix, Map, 1),
     FreshName = Prefix ++ "_" ++ list_utils:integer_to_string(Counter),
     {reply, FreshName, {maps:put(Prefix, Counter + 1, Map), [FreshName|GenNames]}};
-        
+
 handle_call(get_names, _, {_, GenNames} = State) ->
     {reply, lists:reverse(GenNames), State}.
 

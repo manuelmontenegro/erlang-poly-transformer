@@ -10,7 +10,7 @@
 %%
 %% <strong>Important:</strong> Each code generator relies on a {@link freshname_generator}
 %% that must be created before and passed to the code generator via the
-%% {@link set_freshgen/2} function. 
+%% {@link set_freshgen/2} function.
 %%
 %% See [http://erlang.org/doc/reference_manual/typespec.html Erlang Type and function
 %% specifications] for more details.
@@ -42,12 +42,12 @@
 
 -type code_gen() :: pid().
 
--type gen_specifier() :: 
+-type gen_specifier() ::
     none_closure | integer | float | number | {integer, integer()} |
     {atom, atom()} | any | alt | nil | nonempty_list | {'fun', integer()} |
     pos_integer | tuple_any | non_neg_integer | atom | string.
-    
-    
+
+
 -type ast_expr() :: term().
 -type ast_form() :: term().
 
@@ -57,7 +57,7 @@
 
 % The generator is implemented as a gen_server, whose state contains the
 % fresh name generator and the list of gen_specifiers() generated so far.
--record(st, { fresh_gen :: freshname_generator:fn_gen(), 
+-record(st, { fresh_gen :: freshname_generator:fn_gen(),
               generated :: gen_specifier()}).
 
 %%===========================================================================================
@@ -230,12 +230,10 @@ handle_call({gen_call, nonempty_list, [Head, Tail]}, _, St) ->
 handle_call({gen_call, 'fun', Comps}, _, #st{fresh_gen = FGen} = St) ->
     % Returns ?FUN(comp1, ..., compn, fv1, ..., fvm) where
     % fv1... fvm are fresh variables and m = n+1.
-    FVs = [ freshname_generator:fresh_name(FGen, "F") || _ <- [0|Comps] ],
     Arity = length(Comps),
     {
         reply,
-        macro(variable("FUN_" ++ list_utils:integer_to_string(Arity - 1)),
-            Comps ++ [variable(FV) || FV <- FVs]),
+        macro(variable("FUN_" ++ list_utils:integer_to_string(Arity - 1)), Comps),
         add_to_generated({'fun' , Arity - 1}, St)
     };
 
@@ -360,7 +358,7 @@ generate_code_for(none) ->
     % -spec 'NONE'() -> none().
     % 'NONE'() -> fun (0) -> 0 end(1).
     [
-        gen_add_ann('NONE', none, 13),
+        gen_add_ann('NONE', none, 0),
         gen_func('NONE', [application(fun_expr([clause([abstract(0)], none,
             [abstract(0)])]), [abstract(1)])])
     ];
@@ -369,7 +367,7 @@ generate_code_for(integer) ->
     % -spec 'INTEGER'() -> integer().
     % 'INTEGER'() -> receive X when is_integer(X) -> X end.
     [
-        gen_add_ann('INTEGER', integer, 12),
+        gen_add_ann('INTEGER', integer, 0),
         gen_func('INTEGER', [gen_recv(is_integer)])
     ];
 
@@ -377,7 +375,7 @@ generate_code_for(float) ->
     % -spec 'FLOAT'() -> float().
     % 'FLOAT'() -> receive X when is_float(X) -> X end.
     [
-        gen_add_ann('FLOAT', float, 12),
+        gen_add_ann('FLOAT', float, 0),
         gen_func('FLOAT', [gen_recv(is_float)])
     ];
 
@@ -385,7 +383,7 @@ generate_code_for(number) ->
     % -spec 'NUMBER'() -> number().
     % 'NUMBER'() -> receive X when is_number(X) -> X end.
     [
-        gen_add_ann('NUMBER', number, 12),
+        gen_add_ann('NUMBER', number, 0),
         gen_func('NUMBER', [gen_recv(is_number)])
     ];
 
@@ -393,7 +391,7 @@ generate_code_for(pos_integer) ->
     % -spec 'POS_INTEGER'() -> pos_integer().
     % 'POS_INTEGER'() -> receive X when is_integer(X), X >= 1 -> X end.
     [
-        gen_add_ann('POS_INTEGER', pos_integer, 12),
+        gen_add_ann('POS_INTEGER', pos_integer, 0),
         gen_func('POS_INTEGER', [gen_recv({is_number, ">=", 1})])
     ];
 
@@ -401,7 +399,7 @@ generate_code_for(non_neg_integer) ->
     % -spec 'NON_NEG_INTEGER'() -> non_neg_integer().
     % 'POS_INTEGER'() -> receive X when is_integer(X), X >= 0 -> X end.
     [
-        gen_add_ann('NON_NEG_INTEGER', non_neg_integer, 12),
+        gen_add_ann('NON_NEG_INTEGER', non_neg_integer, 0),
         gen_func('NON_NEG_INTEGER', [gen_recv({is_number, ">=", 0})])
     ];
 
@@ -409,7 +407,7 @@ generate_code_for(tuple_any) ->
     % -spec 'TUPLE'() -> tuple().
     % 'TUPLE'() -> receive X when is_tuple(X) -> X end.
     [
-        gen_add_ann('TUPLE', tuple, 12),
+        gen_add_ann('TUPLE', tuple, 0),
         gen_func('TUPLE', [gen_recv(is_tuple)])
     ];
 
@@ -417,15 +415,15 @@ generate_code_for(atom) ->
     % -spec 'ATOM'() -> atom().
     % 'ATOM'() -> receive X when is_atom(X) -> X end.
     [
-        gen_add_ann('ATOM', atom, 12),
+        gen_add_ann('ATOM', atom, 0),
         gen_func('ATOM', [gen_recv(is_atom)])
-    ];    
+    ];
 
 generate_code_for(string) ->
     % -spec 'STRING'() -> string().
     % 'STRING'() -> atom_to_list(X).
     [
-        gen_add_ann('STRING', string, 12),
+        gen_add_ann('STRING', string, 0),
         gen_func('STRING', [application(abstract(atom_to_list), [abstract(a)])])
     ];
 
@@ -433,16 +431,16 @@ generate_code_for(any) ->
     % -spec 'ANY'() -> any().
     % 'ANY'() -> receive X -> X end.
     [
-        gen_add_ann('ANY', any, 12),
+        gen_add_ann('ANY', any, 0),
         gen_func('ANY', [gen_recv()])
-    ]; 
+    ];
 
 generate_code_for(alt) ->
     %-define(ALT(X1, X2),
-    %	receive
-    %	  0 -> X1;
-    %	  1 -> X2
-    %	end).
+    %   receive
+    %     0 -> X1;
+    %     1 -> X2
+    %   end).
     [
         attribute(abstract(define), [
             application(variable("ALT"), [variable("X1"), variable("X2")]),
@@ -451,7 +449,7 @@ generate_code_for(alt) ->
                 clause([abstract(1)], none, [variable("X2")])
             ])
         ])
-    ]; 
+    ];
 
 generate_code_for(nonempty_list) ->
     % -define(NELIST(H, T), [H | T]).
@@ -460,47 +458,54 @@ generate_code_for(nonempty_list) ->
             application(variable("NELIST"), [variable("H"), variable("T")]),
             cons(variable("H"), variable("T"))
         ])
-    ];     
+    ];
 
 generate_code_for({'fun', N}) ->
     % -define(FUN_1(X_1, Res, Y_1, Y_Res, F),
-    % 	begin
-    % 	  Y_1 = X_1,
-    % 	  Y_Res = Res,
-    % 	  F = fun (Z_1) when Z_1 =:= Y_1 -> Res end,
-    % 	  Y_Res = F(Y_1),
-    % 	  F
-    % 	end).
+    %   begin
+    %     Y_1 = X_1,
+    %     Y_Res = Res,
+    %     F = fun (Z_1) when Z_1 =:= Y_1 -> Res end,
+    %     Y_Res = F(Y_1),
+    %     F
+    %   end).
     %
     % -define(FUN_2(X_1, X_2, Res, Y_1, Y_2, Y_Res, F),
-    % 	begin
-    % 	  Y_1 = X_1,
-    % 	  Y_2 = X_2,
-    % 	  Y_Res = Res,
-    % 	  F = fun (Z_1) when Z_1 =:= Y_1, Z_2 =:= Y_2 -> Res end,
-    % 	  Y_Res = F(Y_1, Y_2),
-    % 	  F
-    % 	end).
+    %   begin
+    %     Y_1 = X_1,
+    %     Y_2 = X_2,
+    %     Y_Res = Res,
+    %     F = fun (Z_1) when Z_1 =:= Y_1, Z_2 =:= Y_2 -> Res end,
+    %     Y_Res = F(Y_1, Y_2),
+    %     F
+    %   end).
     %
     %   etc.
-    Xs = [variable("X_" ++ list_utils:integer_to_string(I)) || I <- lists:seq(1, N)],
+    MkVars = fun(Prefix) ->
+        [variable(Prefix ++ list_utils:integer_to_string(I)) || I <- lists:seq(1, N)]
+    end,
+    Xs = MkVars("X_"),
     Res = variable("Res"),
-    Ys = [variable("Y_" ++ list_utils:integer_to_string(I)) || I <- lists:seq(1, N)],
+    Ys = MkVars("Y_"),
     YRes = variable("Y_Res"),
-    Zs = [variable("Z_" ++ list_utils:integer_to_string(I)) || I <- lists:seq(1, N)],
+    Zs = MkVars("Z_"),
     F = variable("F"),
     [
         attribute(abstract(define), [
-            application(variable("FUN_" ++ list_utils:integer_to_string(N)),
-                Xs ++ [Res] ++ Ys ++ [YRes, F]),
+            application(
+                variable("FUN_" ++ list_utils:integer_to_string(N)),
+                Xs ++ [Res]
+            ),
             block_expr(
                 lists:zipwith(fun erl_syntax:match_expr/2, Ys, Xs) ++
                 [match_expr(YRes, Res)] ++
                 [match_expr(F, fun_expr([clause(
                     Zs,
-                    lists:zipwith(fun(Z,Y) -> 
-                                    infix_expr(Z, operator("=:="), Y)
-                                  end, Zs, Ys),
+                    lists:zipwith(
+                        fun(Z,Y) ->
+                            infix_expr(Z, operator("=:="), Y)
+                        end, Zs, Ys
+                    ),
                     [Res]
                 )]))] ++
                 [match_expr(YRes, application(F, Ys))] ++

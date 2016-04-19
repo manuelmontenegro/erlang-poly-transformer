@@ -27,6 +27,7 @@
 %% Functions
 %%===========================================================================================
 
+%%-------------------------------------------------------------------------------------------
 %% @doc
 %% It successively applies a function F on an initial value and collects the
 %% results in a list. The value Init is the initial seed value.
@@ -82,7 +83,7 @@ unfold(F, Init, Ac) ->
 integer_to_string(0) -> "0";
 integer_to_string(Number) ->
     unfoldr(
-        fun (0) -> none;
+        fun(0) -> none;
             (N) when N > 0 -> {ok, digit_to_string(N rem 10), N div 10}
         end,
         Number
@@ -111,7 +112,7 @@ type_to_string(Type) ->
     % Since the pretty printer cannot handle isolated types, but types contained
     % within specs, we embed the given type into a spec, pretty-print the whole
     % spec, and then obtain the type from the latter representation.
-    SpecStr = lists:flatten(erl_pp:form({attribute, 0, spec, 
+    SpecStr = lists:flatten(erl_pp:form({attribute, 0, spec,
             {{f,1},[{type, 0, 'fun', [{type, 0, product, []}, Type]}]}})),
     {_, StrEnd} = lists:split(13, SpecStr),
     StrEndRev = lists:reverse(StrEnd),
@@ -125,14 +126,14 @@ type_to_string(Type) ->
 %% spec_to_string (ast()) -> string()
 %% @end
 %%-------------------------------------------------------------------------------------------
--spec spec_to_string (ast()) -> string().    
+-spec spec_to_string (ast()) -> string().
 spec_to_string(Spec) -> lists:droplast(lists:flatten(erl_pp:form(Spec))).
 
 %%-------------------------------------------------------------------------------------------
 %% @doc
 %% It performs a pre-post-order traversal of the AST corresponding to a type.
 %%
-%% This is done as the `erl_syntax_lib' module (see 
+%% This is done as the `erl_syntax_lib' module (see
 %% [http://erlang.org/doc/man/erl_syntax_lib.html])
 %% cannot handle this kind of ASTs.
 %%
