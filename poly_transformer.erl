@@ -33,12 +33,14 @@
 %% @author Francisco Javier López-Fraguas <fraguas@sip.ucm.es>
 %% @author Manuel Montenegro <montenegro@fdi.ucm.es>
 %% @author Juan Rodríguez-Hortalá <juanrh@fdi.ucm.es>
+%% @author Gorka Suárez García <gorka.suarez@ucm.es>
 %% @copyright 2015
 %%===========================================================================================
  -module(poly_transformer).
 -author("Francisco Javier López-Fraguas").
 -author("Manuel Montenegro").
 -author("Juan Rodríguez-Hortalá").
+-author("Gorka Suárez García").
 -export([parse_transform/2]).
 -import(erl_syntax, [
     type/1, attribute/2, attribute_name/1, concrete/1, attribute_arguments/1,
@@ -430,7 +432,8 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
 
     FVs = [ freshname_generator:fresh_name(FGen, "FRESH") || _ <- Params ],
     FVsVar = [variable(FV) || FV <- FVs],
-    FreshBindings = lists:zipwith(fun erl_syntax:match_expr/2, FVsVar, ParamsVar),
+    %FreshBindings = lists:zipwith(fun erl_syntax:match_expr/2, FVsVar, ParamsVar),
+    FreshBindings = [match_expr(tuple(FVsVar), tuple(ParamsVar))],
 
     {TPars, TRes, Constraints} = decompose_scheme(Scheme),
     TParTypeVars = lists:append([free_variables(TPar) || TPar <- TPars]),

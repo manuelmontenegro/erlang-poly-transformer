@@ -19,12 +19,14 @@
 %% @author Francisco Javier López-Fraguas <fraguas@sip.ucm.es>
 %% @author Manuel Montenegro <montenegro@fdi.ucm.es>
 %% @author Juan Rodríguez-Hortalá <juanrh@fdi.ucm.es>
+%% @author Gorka Suárez García <gorka.suarez@ucm.es>
 %% @copyright 2015
 %%===========================================================================================
 -module(macrocall_generator).
 -author("Francisco Javier López-Fraguas").
 -author("Manuel Montenegro").
 -author("Juan Rodríguez-Hortalá").
+-author("Gorka Suárez García").
 -export([
     init/1, handle_call/3, handle_cast/2, handle_info/2, terminate/2, code_change/3,
     new/0, stop/1, gen_code/3, get_generated_code/1, set_freshgen/2
@@ -227,7 +229,7 @@ handle_call({gen_call, nonempty_list, [Head, Tail]}, _, St) ->
     {reply, macro(variable("NELIST"), [Head, Tail]),
         add_to_generated(nonempty_list, St)};
 
-handle_call({gen_call, 'fun', Comps}, _, #st{fresh_gen = FGen} = St) ->
+handle_call({gen_call, 'fun', Comps}, _, St) ->
     % Returns ?FUN(comp1, ..., compn, fv1, ..., fvm) where
     % fv1... fvm are fresh variables and m = n+1.
     Arity = length(Comps),
