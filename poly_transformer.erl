@@ -427,16 +427,16 @@ genmacro_overloaded_scheme(MGen, {{FunName, Arity}, OverloadedSpec}) ->
 genmacro(MGen, MacroName, Arity, Scheme) ->
     FGen = freshname_generator:new(),
     macrocall_generator:set_freshgen(MGen, FGen),
-    Params = [ freshname_generator:fresh_name(FGen, "PAR") || _ <- lists:seq(1, Arity) ],
+    Params = [freshname_generator:fresh_name(FGen, "PAR") || _ <- lists:seq(1, Arity)],
     ParamsVar = [variable(Param) || Param <- Params],
 
-    FVs = [ freshname_generator:fresh_name(FGen, "FRESH") || _ <- Params ],
+    FVs = [freshname_generator:fresh_name(FGen, "FRESH") || _ <- Params],
     FVsVar = [variable(FV) || FV <- FVs],
-    %FreshBindings = lists:zipwith(fun erl_syntax:match_expr/2, FVsVar, ParamsVar),
     FreshBindings = [match_expr(tuple(FVsVar), tuple(ParamsVar))],
 
     {TPars, TRes, Constraints} = decompose_scheme(Scheme),
     TParTypeVars = lists:append([free_variables(TPar) || TPar <- TPars]),
+    TResTypeVar = list_utils:hdOrDefault(free_variables(TRes), nothing),
     TConstrTypeVars = list_utils:difference(
         list_utils:nub(lists:append([
             lists:append([free_variables(T) || T <- Ts])
@@ -445,12 +445,21 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
         TParTypeVars
     ),
 
-    TParConstrTypeVars = TParTypeVars ++ TConstrTypeVars,
-    As = [freshname_generator:fresh_name(FGen, "A") || _ <- TParConstrTypeVars],
-    AVars = [ variable(A) || A <- As ],
-    APs = [freshname_generator:fresh_name(FGen, "AP")  || _ <- TParConstrTypeVars],
+    TConstrResTypeVars = TConstrTypeVars ++ [TResTypeVar],
+    IsTResInTParConstrTypeVars =
+        lists:member(TResTypeVar, TParTypeVars) orelse
+        lists:member(TResTypeVar, TConstrTypeVars),
 
-    Eta = maps:from_list(lists:zip(TParConstrTypeVars, [variable(A) || A <- As])),
+    TParConstrTypeVars =
+        case IsTResInTParConstrTypeVars of
+            true  -> TParTypeVars ++ TConstrTypeVars;
+            false -> TParTypeVars ++ TConstrResTypeVars
+        end,
+
+    As    = [freshname_generator:fresh_name(FGen, "A") || _ <- TParConstrTypeVars],
+    AVars = [variable(A) || A <- As],
+    APs   = [freshname_generator:fresh_name(FGen, "AP") || _ <- TParConstrTypeVars],
+    Eta   = maps:from_list(lists:zip(TParConstrTypeVars, [variable(A) || A <- As])),
     Theta = maps:from_list(lists:zip(TParConstrTypeVars, [variable(AP) || AP <- APs])),
 
     ExpPars = lists:map(
@@ -465,7 +474,10 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
             VarsToSet = [maps:get(FreeVar, Theta) || FreeVar <- free_variables(TPar)],
             tr_par(TPar, MGen, FGen, Eta, Theta, VarsToSet)
         end,
-        [{var, 0, Name} || Name <- TConstrTypeVars]
+        case IsTResInTParConstrTypeVars of
+            true  -> [{var, 0, Name} || Name <- TConstrTypeVars];
+            false -> [{var, 0, Name} || Name <- TConstrResTypeVars]
+        end
     ),
 
     ParBindings = lists:zipwith(fun erl_syntax:match_expr/2, FVsVar, ExpPars),

@@ -6,15 +6,18 @@
 %% @author Francisco Javier López-Fraguas <fraguas@sip.ucm.es>
 %% @author Manuel Montenegro <montenegro@fdi.ucm.es>
 %% @author Juan Rodríguez-Hortalá <juanrh@fdi.ucm.es>
+%% @author Gorka Suárez García <gorka.suarez@ucm.es>
 %% @copyright 2015
 %%===========================================================================================
 -module(list_utils).
 -author("Francisco Javier López-Fraguas").
 -author("Manuel Montenegro").
 -author("Juan Rodríguez-Hortalá").
+-author("Gorka Suárez García").
 -export([
-    unfoldr/2, unfoldl/2, integer_to_string/1, type_to_string/1,
-    spec_to_string/1, fold_type/4, post_compose_type/2, nub/1, difference/2
+    unfoldr/2, unfoldl/2, integer_to_string/1, type_to_string/1, spec_to_string/1,
+    fold_type/4, post_compose_type/2, nub/1, difference/2, not_in/2, append/2,
+    uappend/2, hdOrDefault/2
 ]).
 
 %%===========================================================================================
@@ -283,3 +286,47 @@ nub([X|Xs]) -> [X | nub([Z || Z <- Xs, Z =/= X])].
 %%-------------------------------------------------------------------------------------------
 -spec difference([T1], [T2]) -> [T1] when T1::any(), T2::any().
 difference(Xs, Ys) -> [X || X <- Xs, not lists:member(X, Ys)].
+
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% Gets if any element in the first list aren't members in the second one.
+%% @spec
+%% not_in([T1], [T2]) -> boolean() when T1::any(), T2::any()
+%% @end
+%%-------------------------------------------------------------------------------------------
+-spec not_in([T1], [T2]) -> boolean() when T1::any(), T2::any().
+not_in(Xs, Ys) -> difference(Xs, Ys) =:= Xs.
+
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% Gets a new list made from the elements in A and B.
+%% @spec
+%% append(A::TA, B::TB) -> R::[TC] when TA::term(), TB::term(), TC::TA|TB
+%% @end
+%%-------------------------------------------------------------------------------------------
+-spec append(A::TA, B::TB) -> R::[TC] when TA::term(), TB::term(), TC::TA|TB.
+append(A, B) when is_list(A), is_list(B) -> A ++ B;
+append(A, B) when is_list(A) -> A ++ [B];
+append(A, B) when is_list(B) -> [A|B];
+append(A, B) -> [A, B].
+
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% Gets a new list made from the elements in A and B with no duplicates.
+%% @spec
+%% uappend(A::TA, B::TB) -> R::[TC] when TA::term(), TB::term(), TC::TA|TB
+%% @end
+%%-------------------------------------------------------------------------------------------
+-spec uappend(A::TA, B::TB) -> R::[TC] when TA::term(), TB::term(), TC::TA|TB.
+uappend(A, B) -> lists:usort(append(A, B)) .
+
+%%-------------------------------------------------------------------------------------------
+%% @doc
+%% Gets the head of a list or a default value.
+%% @spec
+%% hdOrDefault(L::any(), V::any()) -> any()
+%% @end
+%%-------------------------------------------------------------------------------------------
+-spec hdOrDefault(L::any(), V::any()) -> any().
+hdOrDefault(L, _) when is_list(L), length(L) > 0 -> hd(L);
+hdOrDefault(_, V) -> V.
