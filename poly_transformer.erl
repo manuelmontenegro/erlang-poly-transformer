@@ -61,8 +61,13 @@
 %% Types
 %%===========================================================================================
 
--record(options, {output = none, no_schemes = [], no_calls = [],
-                  transform_recursive_calls = true}).
+-record(options, {
+    output = none,
+    no_schemes = [],
+    no_calls = [],
+    transform_recursive_calls = true,
+    no_macros_inside_macro_calls = true
+}).
 
 %%===========================================================================================
 %% Functions
@@ -128,7 +133,8 @@ parse_transform(Forms, CompilerOptions) ->
             % It replaces the calls of functions by calls to macros.
             TransformedFuncDefs = [
                 replace_calls(MacroEnv, Form, Options#options.no_calls,
-                    Options#options.transform_recursive_calls)
+                    Options#options.transform_recursive_calls,
+                    Options#options.no_macros_inside_macro_calls)
                 || Form <- NormFuncDefs
             ],
 
@@ -192,6 +198,12 @@ get_options(Header) ->
                             Options#options{no_schemes = concrete(Arg)};
                         no_transform_recursive_calls ->
                             Options#options{transform_recursive_calls = false};
+                        transform_recursive_calls ->
+                            [Arg] = attribute_arguments(Form),
+                            Options#options{transform_recursive_calls = (Arg =:= true)};
+                        no_macros_inside_macro_calls ->
+                            [Arg] = attribute_arguments(Form),
+                            Options#options{no_macros_inside_macro_calls = (Arg =:= true)};
                         _ -> Options
                     end;
                 _ -> Options
@@ -450,11 +462,10 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
         lists:member(TResTypeVar, TParTypeVars) orelse
         lists:member(TResTypeVar, TConstrTypeVars),
 
-    TParConstrTypeVars =
-        case IsTResInTParConstrTypeVars of
-            true  -> TParTypeVars ++ TConstrTypeVars;
-            false -> TParTypeVars ++ TConstrResTypeVars
-        end,
+    TParConstrTypeVars = case IsTResInTParConstrTypeVars of
+        true  -> TParTypeVars ++ TConstrTypeVars;
+        false -> TParTypeVars ++ TConstrResTypeVars
+    end,
 
     As    = [freshname_generator:fresh_name(FGen, "A") || _ <- TParConstrTypeVars],
     AVars = [variable(A) || A <- As],
@@ -692,22 +703,22 @@ normalize_form(NormEnv, Form) ->
 %% It replaces the function calls in the environment with the corresponding macro calls.
 %% @end
 %%-------------------------------------------------------------------------------------------
-replace_calls(MacroEnv, Form, NoPolyCalls, TransformRecCalls) ->
+replace_calls(MacroEnv, Form, NoPolyCalls, TransformRecCalls, NoMacrosInsideMacroCalls) ->
     case type(Form) of
         function ->
             Name = concrete(function_name(Form)),
             Arity = function_arity(Form),
             case lists:member({Name, Arity}, NoPolyCalls) of
                 false ->
-                    MacroEnv2 =
-                        case TransformRecCalls of
-                            true -> MacroEnv;
-                            false -> lists:keydelete({Name,Arity},1,MacroEnv)
-                        end,
-                    erl_syntax_lib:map(
-                        fun(Exp) -> replace_call(ok, MacroEnv2, Exp) end,
-                        Form
-                    );
+                    MacroEnv2 = case TransformRecCalls of
+                        true -> MacroEnv;
+                        false -> lists:keydelete({Name,Arity},1,MacroEnv)
+                    end,
+                    ReplaceCall = fun(Exp) -> replace_call(MacroEnv2, Exp) end,
+                    case NoMacrosInsideMacroCalls of
+                        true -> syntax_map_wstop(ReplaceCall, Form);
+                        _    -> erl_syntax_lib:map(ReplaceCall, Form)
+                    end;
                 true -> Form
             end;
         _ -> Form
@@ -715,10 +726,32 @@ replace_calls(MacroEnv, Form, NoPolyCalls, TransformRecCalls) ->
 
 %%-------------------------------------------------------------------------------------------
 %% @doc
+%% Applies a function to each node of a syntax tree. The result of each application
+%% replaces the corresponding original node. The order of traversal is bottom-up.
+%% @end
+%%-------------------------------------------------------------------------------------------
+syntax_map_wstop(F, Tree) ->
+    FTree = F(Tree),
+    case erl_syntax:subtrees(Tree) of
+        [] ->
+            FTree;
+        Gs ->
+            case FTree =:= Tree of
+                true ->
+                    Data = [[syntax_map_wstop(F, T) || T <- G] || G <- Gs],
+                    Tree2 = erl_syntax:make_tree(erl_syntax:type(Tree), Data),
+                    F(erl_syntax:copy_attrs(Tree, Tree2));
+                _ ->
+                    FTree
+            end
+    end.
+
+%%-------------------------------------------------------------------------------------------
+%% @doc
 %% It replaces the function calls in the environment with the corresponding macro calls.
 %% @end
 %%-------------------------------------------------------------------------------------------
-replace_call(_, MacroEnv, Expr) ->
+replace_call(MacroEnv, Expr) ->
     case type(Expr) of
         application ->
             case application_operator(Expr) of
