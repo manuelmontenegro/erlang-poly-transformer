@@ -66,7 +66,7 @@
     no_schemes = [],
     no_calls = [],
     transform_recursive_calls = true,
-    no_macros_inside_macro_calls = true
+    no_macros_inside_macro_calls = false
 }).
 
 %%===========================================================================================
@@ -504,14 +504,14 @@ genmacro(MGen, MacroName, Arity, Scheme) ->
 
     Macro = attribute(abstract(define), [
         application(variable(list_to_atom(MacroName)), GVsVar),
-        application(fun_expr([clause([], [],
+        application(fun_expr([clause(FVsVar, [],
             FreshBindings ++
             [receive_expr([clause(
                 [tuple(AVars)],
                 none,
                 ParBindings ++ ExpPars2 ++ lists:append(CsBindings) ++ [ExpRes]
             )])]
-        )]), [])
+        )]), ParamsVar)
     ]),
 
     freshname_generator:stop(FGen),
@@ -590,6 +590,9 @@ tr_par({type, _, nonempty_list, Comps}, MGen, FGen, Eta, Theta, VarsToSet) ->
 
 tr_par({type, _, 'fun', [{type, _, product, TPars}, TRes]}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par_comps(TPars ++ [TRes], MGen, FGen, Eta, Theta, VarsToSet, 'fun');
+
+tr_par({type, _, 'fun', []}, MGen, _, _, _, _) ->
+    macrocall_generator:gen_code(MGen, fun_any, []);
 
 tr_par({integer, _, N}, MGen, FGen, Eta, Theta, VarsToSet) ->
     tr_par_comps([], MGen, FGen, Eta, Theta, VarsToSet, {integer, N});

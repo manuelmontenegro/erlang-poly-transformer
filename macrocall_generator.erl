@@ -45,9 +45,9 @@
 -type code_gen() :: pid().
 
 -type gen_specifier() ::
-    none_closure | integer | float | number | {integer, integer()} |
-    {atom, atom()} | any | alt | nil | nonempty_list | {'fun', integer()} |
-    pos_integer | tuple_any | non_neg_integer | atom | string.
+    none_closure | integer | float | number | {integer, integer()} | {atom, atom()} |
+    any | fun_any | alt | nil | nonempty_list | {'fun', integer()} | pos_integer |
+    tuple_any | non_neg_integer | atom | string.
 
 
 -type ast_expr() :: term().
@@ -208,6 +208,11 @@ handle_call({gen_call, any, []}, _, St) ->
     {reply, application(abstract('ANY'), []),
         add_to_generated(any, St)};
 
+handle_call({gen_call, fun_any, []}, _, St) ->
+    % Returns 'FUN_ANY'()
+    {reply, application(abstract('FUN_ANY'), []),
+        add_to_generated(fun_any, St)};
+
 handle_call({gen_call, alt, Alts}, _, St) ->
     % Returns ?ALT(alt1, ..., altn) where Alts = [alt1,...,altn]
     {reply, lists:foldr(fun(Alt, []) -> Alt;
@@ -236,7 +241,7 @@ handle_call({gen_call, 'fun', Comps}, _, St) ->
     {
         reply,
         macro(variable("FUN_" ++ list_utils:integer_to_string(Arity - 1)), Comps),
-        add_to_generated({'fun' , Arity - 1}, St)
+        add_to_generated({'fun', Arity - 1}, St)
     };
 
 handle_call({gen_call, Type, Params}, _, St) ->
@@ -311,6 +316,11 @@ add_to_generated(Elem, #st{generated = Gen} = St) ->
 %% Generates a function without parameters specification.
 %% @end
 %%-------------------------------------------------------------------------------------------
+gen_add_ann(Name, tuple, Number) ->
+    GenType = fun(T, P) -> {type, Number, T, P} end,
+    SpecBody = GenType('fun', [GenType(product, []), GenType(tuple, any)]),
+    SpecAbst = abstract({{Name, 0}, [SpecBody]}),
+    add_ann(typespec, attribute(spec, [SpecAbst]));
 gen_add_ann(Name, Type, Number) ->
     GenType = fun(T, P) -> {type, Number, T, P} end,
     SpecBody = GenType('fun', [GenType(product, []), GenType(Type, [])]),
@@ -335,6 +345,16 @@ gen_func(Name, Body) ->
 gen_recv() ->
     VX = variable("X"),
     receive_expr([clause([VX], none, [VX])]).
+
+%%-------------------------------------------------------------------------------------------
+%% @private
+%% @doc
+%% Generates a receive with only one clause.
+%% @end
+%%-------------------------------------------------------------------------------------------
+gen_recvf() ->
+    VX = variable("X"),
+    receive_expr([clause([VX], [application(abstract(is_function), [VX])], [VX])]).
 
 %%-------------------------------------------------------------------------------------------
 %% @private
@@ -435,6 +455,14 @@ generate_code_for(any) ->
     [
         gen_add_ann('ANY', any, 0),
         gen_func('ANY', [gen_recv()])
+    ];
+
+generate_code_for(fun_any) ->
+    % -spec 'FUN_ANY'() -> fun().
+    % 'FUN_ANY'() -> receive X when is_function(X) -> X end.
+    [
+        gen_add_ann('FUN_ANY', 'fun', 0),
+        gen_func('FUN_ANY', [gen_recvf()])
     ];
 
 generate_code_for(alt) ->
