@@ -5,6 +5,7 @@ This tool is meant to improve the precision of [Dialyzer](http://www.erlang.org/
 ## Example
 
 Given the following definition:
+
 ```erlang
 -spec id(A) -> A.
 id(X) -> X.
@@ -24,7 +25,7 @@ The transformation would replace the call `id(0)` in `f` with a call to a macro 
 -spec f() -> 0.
 ```
 
-##Usage
+## Usage
 
 This tool has been implemented as an Erlang compiler phase. In order to perform the transformation add the following directive to your module:
 
@@ -34,6 +35,7 @@ This tool has been implemented as an Erlang compiler phase. In order to perform 
 The module `poly_transformer` has to be in the same directory in which Dialyzer/Typer is run, or it must be accessible from the Erlang code path. This transformation is only performed when Dialyzer/Typer is running. With an standard compilation no transformation is done.
 
 For instance, given the following module:
+
 ```erlang
 -module(test).
 
@@ -43,13 +45,16 @@ id(X) -> X.
 
 f() -> id(0).
 ```
+
 Typer will yield the following output:
+
 ```erlang
 -spec id(A_1) -> A_1.
 -spec f() -> 0.
 ```
 
-##Transformation Flags
+## Transformation Flags
+
 The module being transformed may include the following attributes:
 
 ```erlang
